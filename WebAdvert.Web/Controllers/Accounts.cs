@@ -96,6 +96,7 @@ namespace WebAdvert.Web.Controllers
         [HttpGet]
         public IActionResult Login(LoginModel model)
         {
+            ModelState.Clear();
             return View(model);
         }
 
@@ -109,7 +110,8 @@ namespace WebAdvert.Web.Controllers
 
                 if(result.Succeeded)
                 {
-                    return RedirectToAction("Index", "Home");
+                    return RedirectToAction("Index", "Home");   
+                    //return RedirectToAction("MfaLogin", "Accounts");
                 }
                 else
                 {
@@ -119,5 +121,94 @@ namespace WebAdvert.Web.Controllers
 
             return View("Login", model);
         }
+
+        [HttpGet]
+        public IActionResult ForgotPassword(ForgotPasswordModel model)
+        {
+            return View(model);
+        }
+
+        [HttpPost]
+        [ActionName("ForgotPassword")]
+        public async Task<IActionResult> ForgotPassword_Post(ForgotPasswordModel model)
+        {
+            if(ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+
+                if (user == null)
+                {
+                    ModelState.AddModelError("NotFound", "A user with the given email address was not found");
+                    return View(model);
+                }
+
+                await user.ForgotPasswordAsync();
+
+                return RedirectToAction("ConfirmForgottenPassword", "Accounts");
+            }
+
+            return View(model);
+        }
+
+        [HttpGet]
+        public IActionResult ConfirmForgottenPassword(ConfirmForgottenPassword model)
+        {
+            ModelState.Clear();
+            return View(model);
+        }
+
+        [HttpPost]
+        [ActionName("ConfirmForgottenPassword")]
+        public async Task<IActionResult> ConfirmForgottenPassword_Post(ConfirmForgottenPassword model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+
+                if (user == null)
+                {
+                    ModelState.AddModelError("NotFound", "A user with the given email address was not found");
+                    return View(model);
+                }
+
+                await user.ConfirmForgotPasswordAsync(model.ConfirmationCode, model.NewPassword);
+
+                return RedirectToAction("Index", "Home");
+            }
+
+            return View(model);
+        }
+
+        [HttpGet]
+        public IActionResult MfaLogin(MfaLoginModel model)
+        {
+            ModelState.Clear();
+            return View(model);
+        }
+
+        [HttpPost]
+        [ActionName("MfaLogin")]
+        public async Task<IActionResult> MfaLogin_Post(MfaLoginModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                if (user == null)
+                {
+                    ModelState.AddModelError("NotFound", "A user with the given email address was not found");
+                    return View(model);
+                }
+
+                var result = await _userManager.RedeemTwoFactorRecoveryCodeAsync(user, model.MfaCode);
+
+                if(result.Succeeded)
+                {
+                    return RedirectToAction("Index", "Home");
+                }
+            }
+
+            return View(model);
+        }
+
     }
 }
